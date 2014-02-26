@@ -1,0 +1,10 @@
+TODO: 
+
+1) Include the delta value to the SVM classification.
+   - Delta is how many "steps" cells are simulated (usually 4~5)
+   - Delta can have a profound effect on the result.
+
+2) Add socring function.
+   - Just (1-error).
+   - Need to be ~0.1.
+
