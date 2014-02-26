@@ -1,6 +1,7 @@
 import numpy as np
 import csv
 from sklearn import svm
+from sklearn import cross_validation
 import time
 
 # read in  data, parse into training and target sets
@@ -31,9 +32,23 @@ start = time.time()
 clf = svm.SVC()
 clf.fit(data_ed[:n_train], data_st[:n_train,0])
 
+
 end = time.time()
 print "ellapsed time = ", end - start
 
+## the data sample too big... try smaller sample size.
+cell_data = data_ed[:n_train]
+cell_target = data_st[:n_train,0]
+
+## cross validation
+X_train, X_test, y_train, y_test = \
+cross_validation.train_test_split(cell_data, cell_target, \
+                                  test_size=0.4, random_state=0)
+
+clf = svm.SVC(kernel='linear', C=1)
+cv_scores = cross_validation.cross_val_score(clf, cell_data, cell_target, cv=5)
+
+print("Accuracy: %0.2f (+/- %0.2f)" % (cv_scores.mean(), cv_scores.std() * 2))
 
 
 # import visualize_cells
