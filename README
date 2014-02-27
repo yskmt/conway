@@ -18,6 +18,9 @@ NOTES:
 used n/10 number of train data
 error: 0.14643074,  0.14768123,  0.14361083,  0.14393775,  0.14298096
 
+used n/5 number of train data
+[ 0.14582195  0.14550645  0.14802684  0.14508651  0.14406814]
+
 
 Directories:
 

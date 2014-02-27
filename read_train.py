@@ -37,6 +37,27 @@ def svm_predict (clfs, data_test, dim ):
 
     return data_predict.T
 
+def get_delta_neighbor( cell_num, delta ):
+    "get the list of delta-neighboring cells"
+
+    i_cell = cell_num%20
+    j_cell = cell_num/20
+
+    neighbor_indices = []
+
+    nei_range = delta*2+1
+
+    for i in range(nei_range):
+        for j in range(nei_range):
+            i_nei = i_cell-delta+i
+            j_nei = j_cell-delta+j
+            
+            if (-1<i_nei<20) & (-1<j_nei<20):
+                neighbor_indices.append(i_nei*20+j_nei)
+    
+    return neighbor_indices
+
+
 n_div = 5
 
 
@@ -100,6 +121,9 @@ for i in range(max(delta)):
     # print "error %% = %f" %(sum(er[i])/((n_train+1)*dim))
 
 print er
+
+
+
 
 # ## the data sample too big... try smaller sample size.
 # cell_data = data_ed[:n_train]
