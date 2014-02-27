@@ -1,6 +1,7 @@
 import numpy as np
 import csv
 from sklearn import svm
+from sklearn.linear_model import SGDClassifier
 from sklearn import cross_validation
 import time
 from sklearn.externals import joblib
@@ -28,16 +29,16 @@ def get_delta_neighbor( cell_num, delta ):
     return neighbor_indices
 
 
-def svm_vectors ( train, target, n_cells ):
+def svm_vectors ( train, target, n_cells,delta ):
     "Get the SVN vectors for each cell"
     clfs = []
     start = time.time()
     for i in range(n_cells):
         print "%dth iteration" %i
         st_svc = time.time()
-        clfs.append(svm.SVC())
-        clfs[i].fit(train[:,get_delta_neighbor(i,1)], target[:,i])
-        pdb.set_trace()
+        clfs.append(SGDClassifier(loss="hinge", penalty="l2"))
+        clfs[i].fit(train[:,get_delta_neighbor(i,delta)], target[:,i])
+        # pdb.set_trace()
         ed_svc = time.time()
         print "done, time: %f" %(ed_svc-st_svc)        
     end = time.time()
@@ -46,7 +47,7 @@ def svm_vectors ( train, target, n_cells ):
 
     return clfs
 
-def svm_predict (clfs, data_test, n_cells ):
+def svm_predict (clfs, data_test, n_cells, delta ):
     "Predict the values for each cell"
     n_train, _ = data_test.shape
     data_predict = np.zeros([n_cells, n_train])
@@ -54,7 +55,7 @@ def svm_predict (clfs, data_test, n_cells ):
     for i in range(n_cells):
         print "%dth iteration" %i
         st_svc = time.time()
-        data_predict[i] = np.array(clfs[i].predict( data_test[:,get_delta_neighbor(i,1)]) )
+        data_predict[i] = np.array(clfs[i].predict( data_test[:,get_delta_neighbor(i,delta)]) )
         ed_svc = time.time()
         print "done, time: %f" %(ed_svc-st_svc)        
 
@@ -86,7 +87,7 @@ for i in range(n):
 
 
 max_delta = max(delta)
-max_delta = 1
+# max_delta = 1
 
 for i in range(max_delta):
     data_st[i] = np.array(data_st[i], dtype=int)
@@ -101,11 +102,11 @@ for i in range(max_delta):
     print "runnning the svm for delta = %i" %(i+1)
     n_train, n_cells = data_st[i].shape
     n_train = n_train/n_div
-    clfs[i] =  svm_vectors( data_ed[i][:n_train], data_st[i][:n_train], n_cells)
+    clfs[i] =  svm_vectors( data_ed[i][:n_train], data_st[i][:n_train], n_cells, i+1)
 
     # save the clfs
-    print "saving the clfs for delta = %i" %(i+1)
-    joblib.dump(clfs, 'conway_%i.pkl'%i) 
+    # print "saving the clfs for delta = %i" %(i+1)
+    # joblib.dump(clfs, 'conway_%i.pkl'%i) 
 
 # predicted data for [delta]
 data_predict = [[] for i in range(max_delta)]
@@ -114,7 +115,7 @@ for i in range(max_delta):
     print "predicting the values for delta = %i" %(i+1)
     n_train, n_cells = data_st[i].shape
     n_train = n_train/n_div
-    data_predict[i] = svm_predict( clfs[i], data_ed[i][n_train:n_train*2+1], n_cells)
+    data_predict[i] = svm_predict( clfs[i], data_ed[i][n_train:n_train*2+1], n_cells, i+1)
 
 er = np.zeros(max_delta)
 for i in range(max_delta):
