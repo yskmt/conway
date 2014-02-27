@@ -28,7 +28,11 @@ def svm_predict (clfs, data_test, dim ):
     data_predict = np.zeros([dim, n_train])
 
     for i in range(dim):
+        print "%dth iteration" %i
+        st_svc = time.time()
         data_predict[i] = np.array(clfs[i].predict( data_test) )
+        ed_svc = time.time()
+        print "done, time: %f" %(ed_svc-st_svc)        
 
     return data_predict.T
 
@@ -67,8 +71,8 @@ print "predicting the values"
 data_predict = svm_predict( clfs, data_ed[n_train:n_train*2-1], dim)
 
 
-error = sum((abs(data_st[n_train:n_train*2-1,0:dim] - data_predict)).T)
-print "error % = %f" %(sum(error)/((n_train-1)*dim))
+er = sum((abs(data_st[n_train:n_train*2-1,0:dim] - data_predict)).T)
+print "error %% = %f" %(sum(er)/((n_train-1)*dim))
 
 # ## the data sample too big... try smaller sample size.
 # cell_data = data_ed[:n_train]
