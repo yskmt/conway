@@ -6,36 +6,6 @@ import time
 from sklearn.externals import joblib
 import pdb
 
-def svm_vectors ( train, target, dim ):
-    "Get the SVN vectors for each cell"
-    clfs = []
-    start = time.time()
-    for i in range(dim):
-        print "%dth iteration" %i
-        st_svc = time.time()
-        clfs.append(svm.SVC())
-        clfs[i].fit(train, target[:,i])
-        ed_svc = time.time()
-        print "done, time: %f" %(ed_svc-st_svc)        
-    end = time.time()
-
-    print "ellapsed time = ", end - start
-
-    return clfs
-
-def svm_predict (clfs, data_test, dim ):
-    "Predict the values for each cell"
-    n_train, _ = data_test.shape
-    data_predict = np.zeros([dim, n_train])
-
-    for i in range(dim):
-        print "%dth iteration" %i
-        st_svc = time.time()
-        data_predict[i] = np.array(clfs[i].predict( data_test) )
-        ed_svc = time.time()
-        print "done, time: %f" %(ed_svc-st_svc)        
-
-    return data_predict.T
 
 def get_delta_neighbor( cell_num, delta ):
     "get the list of delta-neighboring cells"
@@ -58,7 +28,40 @@ def get_delta_neighbor( cell_num, delta ):
     return neighbor_indices
 
 
-n_div = 5
+def svm_vectors ( train, target, n_cells ):
+    "Get the SVN vectors for each cell"
+    clfs = []
+    start = time.time()
+    for i in range(n_cells):
+        print "%dth iteration" %i
+        st_svc = time.time()
+        clfs.append(svm.SVC())
+        clfs[i].fit(train[:,get_delta_neighbor(i,1)], target[:,i])
+        pdb.set_trace()
+        ed_svc = time.time()
+        print "done, time: %f" %(ed_svc-st_svc)        
+    end = time.time()
+
+    print "ellapsed time = ", end - start
+
+    return clfs
+
+def svm_predict (clfs, data_test, n_cells ):
+    "Predict the values for each cell"
+    n_train, _ = data_test.shape
+    data_predict = np.zeros([n_cells, n_train])
+
+    for i in range(n_cells):
+        print "%dth iteration" %i
+        st_svc = time.time()
+        data_predict[i] = np.array(clfs[i].predict( data_test[:,get_delta_neighbor(i,1)]) )
+        ed_svc = time.time()
+        print "done, time: %f" %(ed_svc-st_svc)        
+
+    return data_predict.T
+
+
+n_div = 2
 
 
 # read in  data, parse into training and target sets
@@ -70,8 +73,6 @@ n,m = dataset.shape
 print "cleaning up the dataset"
 id = np.zeros(n, dtype=int)
 delta = np.zeros(n, dtype=int)
-# data_st = np.zeros([n,400], dtype=int)
-# data_ed = np.zeros([n,400], dtype=int)
 data_st = [[] for i in range(5) ]
 data_ed = [[] for i in range(5) ]
 for i in range(n):
@@ -83,42 +84,47 @@ for i in range(n):
     # data_st[i] = np.array(dataset[i,2:402],dtype=int)
     # data_ed[i] = np.array(dataset[i,402:802],dtype=int)
 
-for i in range(max(delta)):
+
+max_delta = max(delta)
+max_delta = 1
+
+for i in range(max_delta):
     data_st[i] = np.array(data_st[i], dtype=int)
     data_ed[i] = np.array(data_ed[i], dtype=int)
 
 # classification functions for [delta][cell#]
-clfs = [[] for i in range(max(delta))]
+clfs = [[] for i in range(max_delta)]
 # solve the problem for different levels
-for i in range(max(delta)):
+for i in range(max_delta):
 
     # run the svm
     print "runnning the svm for delta = %i" %(i+1)
-    n_train, dim = data_st[i].shape
+    n_train, n_cells = data_st[i].shape
     n_train = n_train/n_div
-    clfs[i] =  svm_vectors( data_ed[i][:n_train], data_st[i][:n_train], dim)
+    clfs[i] =  svm_vectors( data_ed[i][:n_train], data_st[i][:n_train], n_cells)
 
     # save the clfs
     print "saving the clfs for delta = %i" %(i+1)
     joblib.dump(clfs, 'conway_%i.pkl'%i) 
 
 # predicted data for [delta]
-data_predict = [[] for i in range(max(delta))]
+data_predict = [[] for i in range(max_delta)]
 # predict the values for different levels
-for i in range(max(delta)):
+for i in range(max_delta):
     print "predicting the values for delta = %i" %(i+1)
-    n_train, dim = data_st[i].shape
+    n_train, n_cells = data_st[i].shape
     n_train = n_train/n_div
-    data_predict[i] = svm_predict( clfs[i], data_ed[i][n_train:n_train*2+1], dim)
+    data_predict[i] = svm_predict( clfs[i], data_ed[i][n_train:n_train*2+1], n_cells)
 
-er = np.zeros(max(delta))
-for i in range(max(delta)):
-    n_train, dim = data_st[i].shape
+er = np.zeros(max_delta)
+for i in range(max_delta):
+    n_train, n_cells = data_st[i].shape
     n_train = n_train/n_div
-    er[i] = sum(sum(abs(data_st[i][n_train:n_train*2+1,0:dim] - data_predict[i]).T)) / \
-        ((n_train+1)*dim)
-    # er[i] = sum((abs(data_st[i][n_train:n_train*2+1,0:dim] - data_predict[i])).T)
-    # print "error %% = %f" %(sum(er[i])/((n_train+1)*dim))
+    er[i] = sum(sum(abs(data_st[i][n_train:n_train*2+1,0:n_cells] \
+                        - data_predict[i]).T)) / \
+        ((n_train+1)*n_cells)
+    # er[i] = sum((abs(data_st[i][n_train:n_train*2+1,0:n_cells] - data_predict[i])).T)
+    # print "error %% = %f" %(sum(er[i])/((n_train+1)*n_cells))
 
 print er
 
