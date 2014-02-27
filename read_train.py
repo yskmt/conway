@@ -6,7 +6,8 @@ from sklearn import cross_validation
 import time
 from sklearn.externals import joblib
 import pdb
-
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.ensemble import RandomForestClassifier
 
 def get_delta_neighbor( cell_num, delta ):
     "get the list of delta-neighboring cells"
@@ -30,13 +31,16 @@ def get_delta_neighbor( cell_num, delta ):
 
 
 def svm_vectors ( train, target, n_cells,delta ):
-    "Get the SVN vectors for each cell"
+    "Get the SVM vectors for each cell"
     clfs = []
     start = time.time()
     for i in range(n_cells):
         print "%dth iteration" %i
         st_svc = time.time()
-        clfs.append(SGDClassifier(loss="hinge", penalty="l2"))
+        # clfs.append(SGDClassifier(loss="hinge", penalty="l2"))
+        # clfs.append(svm.SVC())
+        # clfs.append(KNeighborsClassifier())
+        clfs.append(RandomForestClassifier())
         clfs[i].fit(train[:,get_delta_neighbor(i,delta)], target[:,i])
         # pdb.set_trace()
         ed_svc = time.time()
@@ -87,11 +91,23 @@ for i in range(n):
 
 
 max_delta = max(delta)
-# max_delta = 1
+n_cells = 400
+max_delta = 1
+
+n_train = np.zeros(max_delta, dtype=int)
+n_test = np.zeros(max_delta, dtype=int)
+train_st = [[] for i in range(5) ]
+train_ed = [[] for i in range(5) ]
+test_st = [[] for i in range(5) ]
+test_ed = [[] for i in range(5) ]
 
 for i in range(max_delta):
-    data_st[i] = np.array(data_st[i], dtype=int)
-    data_ed[i] = np.array(data_ed[i], dtype=int)
+    n_train[i] = int(len(data_st[i])*0.9)
+    n_test[i] = int(len(data_st[i]) - n_train[i])
+    train_st[i] = np.array(data_st[i][:n_train[i]], dtype=int)
+    train_ed[i] = np.array(data_ed[i][:n_train[i]], dtype=int)
+    test_st[i] = np.array(data_st[i][n_train[i]:], dtype=int)
+    test_ed[i] = np.array(data_ed[i][n_train[i]:], dtype=int)
 
 # classification functions for [delta][cell#]
 clfs = [[] for i in range(max_delta)]
@@ -100,9 +116,7 @@ for i in range(max_delta):
 
     # run the svm
     print "runnning the svm for delta = %i" %(i+1)
-    n_train, n_cells = data_st[i].shape
-    n_train = n_train/n_div
-    clfs[i] =  svm_vectors( data_ed[i][:n_train], data_st[i][:n_train], n_cells, i+1)
+    clfs[i] =  svm_vectors( train_ed[i], train_st[i], n_cells, i+1)
 
     # save the clfs
     # print "saving the clfs for delta = %i" %(i+1)
@@ -113,17 +127,12 @@ data_predict = [[] for i in range(max_delta)]
 # predict the values for different levels
 for i in range(max_delta):
     print "predicting the values for delta = %i" %(i+1)
-    n_train, n_cells = data_st[i].shape
-    n_train = n_train/n_div
-    data_predict[i] = svm_predict( clfs[i], data_ed[i][n_train:n_train*2+1], n_cells, i+1)
+    data_predict[i] = svm_predict( clfs[i], test_ed[i], n_cells, i+1)
 
 er = np.zeros(max_delta)
 for i in range(max_delta):
-    n_train, n_cells = data_st[i].shape
-    n_train = n_train/n_div
-    er[i] = sum(sum(abs(data_st[i][n_train:n_train*2+1,0:n_cells] \
-                        - data_predict[i]).T)) / \
-        ((n_train+1)*n_cells)
+    er[i] = sum(sum(abs(test_st[i] - data_predict[i]).T)) / \
+        (n_test[i]*n_cells)
     # er[i] = sum((abs(data_st[i][n_train:n_train*2+1,0:n_cells] - data_predict[i])).T)
     # print "error %% = %f" %(sum(er[i])/((n_train+1)*n_cells))
 
