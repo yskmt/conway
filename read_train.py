@@ -4,6 +4,7 @@ from sklearn import svm
 from sklearn import cross_validation
 import time
 from sklearn.externals import joblib
+import pdb
 
 def svm_vectors ( train, target, dim ):
     "Get the SVN vectors for each cell"
@@ -36,6 +37,8 @@ def svm_predict (clfs, data_test, dim ):
 
     return data_predict.T
 
+n_div = 5
+
 
 # read in  data, parse into training and target sets
 print "reading the dataset"
@@ -44,35 +47,59 @@ n,m = dataset.shape
 
 # clean up the datasets
 print "cleaning up the dataset"
-id = np.zeros(n)
-delta = np.zeros(n)
-data_st = np.zeros([n,400])
-data_ed = np.zeros([n,400])
+id = np.zeros(n, dtype=int)
+delta = np.zeros(n, dtype=int)
+# data_st = np.zeros([n,400], dtype=int)
+# data_ed = np.zeros([n,400], dtype=int)
+data_st = [[] for i in range(5) ]
+data_ed = [[] for i in range(5) ]
 for i in range(n):
     id[i] = int(dataset[i,0])
     delta[i] = int(dataset[i,1])
+    
+    data_st[delta[i]-1].append(dataset[i,2:402])
+    data_ed[delta[i]-1].append(dataset[i,402:802])
+    # data_st[i] = np.array(dataset[i,2:402],dtype=int)
+    # data_ed[i] = np.array(dataset[i,402:802],dtype=int)
 
-    data_st[i] = np.array(dataset[i,2:402],dtype=int)
-    data_ed[i] = np.array(dataset[i,402:802],dtype=int)
+for i in range(max(delta)):
+    data_st[i] = np.array(data_st[i], dtype=int)
+    data_ed[i] = np.array(data_ed[i], dtype=int)
 
-# run the svm
-print "runnning the svm"
-_, dim = data_st.shape
-# dim = 10
-n_train = n/5
-clfs = svm_vectors( data_ed[:n_train], data_st[:n_train,:], dim)
+# classification functions for [delta][cell#]
+clfs = [[] for i in range(max(delta))]
+# solve the problem for different levels
+for i in range(max(delta)):
 
-# save the clfs
-print "saving the clfs"
-joblib.dump(clfs, 'conway.pkl') 
+    # run the svm
+    print "runnning the svm for delta = %i" %(i+1)
+    n_train, dim = data_st[i].shape
+    n_train = n_train/n_div
+    clfs[i] =  svm_vectors( data_ed[i][:n_train], data_st[i][:n_train], dim)
 
-# predict the values
-print "predicting the values"
-data_predict = svm_predict( clfs, data_ed[n_train:n_train*2-1], dim)
+    # save the clfs
+    print "saving the clfs for delta = %i" %(i+1)
+    joblib.dump(clfs, 'conway_%i.pkl'%i) 
 
+# predicted data for [delta]
+data_predict = [[] for i in range(max(delta))]
+# predict the values for different levels
+for i in range(max(delta)):
+    print "predicting the values for delta = %i" %(i+1)
+    n_train, dim = data_st[i].shape
+    n_train = n_train/n_div
+    data_predict[i] = svm_predict( clfs[i], data_ed[i][n_train:n_train*2+1], dim)
 
-er = sum((abs(data_st[n_train:n_train*2-1,0:dim] - data_predict)).T)
-print "error %% = %f" %(sum(er)/((n_train-1)*dim))
+er = np.zeros(max(delta))
+for i in range(max(delta)):
+    n_train, dim = data_st[i].shape
+    n_train = n_train/n_div
+    er[i] = sum(sum(abs(data_st[i][n_train:n_train*2+1,0:dim] - data_predict[i]).T)) / \
+        ((n_train+1)*dim)
+    # er[i] = sum((abs(data_st[i][n_train:n_train*2+1,0:dim] - data_predict[i])).T)
+    # print "error %% = %f" %(sum(er[i])/((n_train+1)*dim))
+
+print er
 
 # ## the data sample too big... try smaller sample size.
 # cell_data = data_ed[:n_train]

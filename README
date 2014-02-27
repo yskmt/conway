@@ -14,6 +14,10 @@ TODO:
      are far away to each other probably never interact.
 
 
+NOTES:
+used n/10 number of train data
+error: 0.14643074,  0.14768123,  0.14361083,  0.14393775,  0.14298096
+
 
 Directories:
 
