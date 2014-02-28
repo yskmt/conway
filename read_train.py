@@ -8,6 +8,35 @@ from sklearn.externals import joblib
 import pdb
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.ensemble import RandomForestClassifier
+from sklearn.ensemble import AdaBoostClassifier
+
+def generate_symmetry( data ):
+    "generate the symmetry cell pattern"
+    # data: n*400 array
+    
+    n,m = data.shape
+    data_symm = np.zeros([5*n, m], dtype=int)
+
+    for l in range(n):
+    
+        for k in range(400):
+            i = k%20
+            j = k/20
+
+            k2 = (19-j) + 20*i
+            k3 = (19-i) + 20*(19-j)
+            k4 = j      + 20*(19-i)
+            k5 = (19-i) + 20*j
+            k6 = i      + 20*(19-j)
+
+            data_symm[(l-1)*5,k2]   = data[l,k]
+            data_symm[(l-1)*5+1,k3] = data[l,k]
+            data_symm[(l-1)*5+2,k4] = data[l,k]
+            data_symm[(l-1)*5+3,k5] = data[l,k]
+            data_symm[(l-1)*5+4,k6] = data[l,k]
+
+    return data_symm
+
 
 def get_delta_neighbor( cell_num, delta ):
     "get the list of delta-neighboring cells"
@@ -37,10 +66,11 @@ def svm_vectors ( train, target, n_cells,delta ):
     for i in range(n_cells):
         print "%dth iteration" %i
         st_svc = time.time()
-        # clfs.append(SGDClassifier(loss="hinge", penalty="l2"))
+        clfs.append(SGDClassifier(loss="hinge", penalty="l2"))
         # clfs.append(svm.SVC())
         # clfs.append(KNeighborsClassifier())
-        clfs.append(RandomForestClassifier())
+        # clfs.append(AdaBoostClassifier(n_estimators=100))
+        # clfs.append(RandomForestClassifier(n_estimators=40,n_jobs=4, criterion="entropy"))
         clfs[i].fit(train[:,get_delta_neighbor(i,delta)], target[:,i])
         # pdb.set_trace()
         ed_svc = time.time()
@@ -66,8 +96,7 @@ def svm_predict (clfs, data_test, n_cells, delta ):
     return data_predict.T
 
 
-n_div = 2
-
+nei_range = 20
 
 # read in  data, parse into training and target sets
 print "reading the dataset"
@@ -85,10 +114,20 @@ for i in range(n):
     delta[i] = int(dataset[i,1])
     
     data_st[delta[i]-1].append(dataset[i,2:402])
-    data_ed[delta[i]-1].append(dataset[i,402:802])
-    # data_st[i] = np.array(dataset[i,2:402],dtype=int)
-    # data_ed[i] = np.array(dataset[i,402:802],dtype=int)
+    # data_2, data_3, data_4, data_5, data_6 = generate_symmetry( dataset[i,2:402] )
+    # data_st[delta[i]-1].append(data_2)
+    # data_st[delta[i]-1].append(data_3)
+    # data_st[delta[i]-1].append(data_4)
+    # data_st[delta[i]-1].append(data_5)
+    # data_st[delta[i]-1].append(data_6)
 
+    data_ed[delta[i]-1].append(dataset[i,402:802])
+    # data_2, data_3, data_4, data_5, data_6 = generate_symmetry( dataset[i,402:802] )
+    # data_ed[delta[i]-1].append(data_2)
+    # data_ed[delta[i]-1].append(data_3)
+    # data_ed[delta[i]-1].append(data_4)
+    # data_ed[delta[i]-1].append(data_5)
+    # data_ed[delta[i]-1].append(data_6)
 
 max_delta = max(delta)
 n_cells = 400
@@ -104,10 +143,19 @@ test_ed = [[] for i in range(5) ]
 for i in range(max_delta):
     n_train[i] = int(len(data_st[i])*0.9)
     n_test[i] = int(len(data_st[i]) - n_train[i])
+
     train_st[i] = np.array(data_st[i][:n_train[i]], dtype=int)
     train_ed[i] = np.array(data_ed[i][:n_train[i]], dtype=int)
     test_st[i] = np.array(data_st[i][n_train[i]:], dtype=int)
     test_ed[i] = np.array(data_ed[i][n_train[i]:], dtype=int)
+
+    # add 5 more symmetrical positions
+    train_st[i] = np.concatenate((train_st[i], generate_symmetry(train_st[i])))
+    train_ed[i] = np.concatenate((train_ed[i], generate_symmetry(train_ed[i])))
+
+    n_train[i] = int(len(train_st[i]))
+
+
 
 # classification functions for [delta][cell#]
 clfs = [[] for i in range(max_delta)]
@@ -116,7 +164,7 @@ for i in range(max_delta):
 
     # run the svm
     print "runnning the svm for delta = %i" %(i+1)
-    clfs[i] =  svm_vectors( train_ed[i], train_st[i], n_cells, i+1)
+    clfs[i] =  svm_vectors( train_ed[i], train_st[i], n_cells, i+nei_range)
 
     # save the clfs
     # print "saving the clfs for delta = %i" %(i+1)
@@ -127,7 +175,7 @@ data_predict = [[] for i in range(max_delta)]
 # predict the values for different levels
 for i in range(max_delta):
     print "predicting the values for delta = %i" %(i+1)
-    data_predict[i] = svm_predict( clfs[i], test_ed[i], n_cells, i+1)
+    data_predict[i] = svm_predict( clfs[i], test_ed[i], n_cells, i+nei_range)
 
 er = np.zeros(max_delta)
 for i in range(max_delta):

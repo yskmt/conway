@@ -1,4 +1,4 @@
-import numpy as np
+eimport numpy as np
 from matplotlib import pyplot as plt
 import pdb
 import matplotlib
