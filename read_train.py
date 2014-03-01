@@ -136,8 +136,9 @@ for i in range(n):
     id[i] = int(dataset[i,0])
     delta[i] = int(dataset[i,1])
     
-    data_st[delta[i]-1].append(dataset[i,(2+0):(2+400)])
-    data_ed[delta[i]-1].append(dataset[i,(402+0):(402+400)])
+    if min_delta<delta[i]<=max_delta:
+        data_st[delta[i]-1].append(dataset[i,(2+0):(2+400)])
+        data_ed[delta[i]-1].append(dataset[i,(402+0):(402+400)])
 
 # max_delta = max(delta)
 # min_delta = 0
