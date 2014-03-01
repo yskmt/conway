@@ -59,7 +59,7 @@ def get_delta_neighbor( cell_num, delta ):
     return neighbor_indices
 
 
-def svm_vectors ( train, target, n_cells, min_model, max_model, delta ):
+def svm_vectors ( train, target, n_cells, min_models, max_models, delta ):
     "Get the SVM vectors for each cell"
     clfs = []
     start = time.time()
@@ -71,8 +71,8 @@ def svm_vectors ( train, target, n_cells, min_model, max_model, delta ):
         # clfs.append(KNeighborsClassifier())
         # clfs.append(AdaBoostClassifier(n_estimators=100))
         clfs.append(RandomForestClassifier(n_estimators=200, n_jobs=-1))
-        clfs[i].fit(train[:,get_delta_neighbor(i+min_model,delta)], \
-                    target[:,i+min_model])
+        clfs[i].fit(train[:,get_delta_neighbor(i+min_models,delta)], \
+                    target[:,i+min_models])
 
         # pdb.set_trace()
         ed_svc = time.time()
@@ -83,7 +83,7 @@ def svm_vectors ( train, target, n_cells, min_model, max_model, delta ):
 
     return clfs
 
-def svm_predict (clfs, data_test, n_cells, min_model, max_model, delta ):
+def svm_predict (clfs, data_test, n_cells, min_models, max_models, delta ):
     "Predict the values for each cell"
     n_train, _ = data_test.shape
     data_predict = np.zeros([n_cells, n_train])
@@ -92,7 +92,7 @@ def svm_predict (clfs, data_test, n_cells, min_model, max_model, delta ):
         print "%dth iteration" %i
         st_svc = time.time()
         data_predict[i] = \
-            np.array(clfs[i].predict(data_test[:,get_delta_neighbor(i+min_model,delta)]) )
+            np.array(clfs[i].predict(data_test[:,get_delta_neighbor(i+min_models,delta)]) )
         ed_svc = time.time()
         print "done, time: %f" %(ed_svc-st_svc)        
 
@@ -174,7 +174,7 @@ for i in range(min_delta, max_delta):
     # run the svm
     print "runnning the svm for delta = %i" %(i+1)
     clfs[i] =  svm_vectors( train_ed[i], train_st[i], n_models, \
-                            min_model, max_model, i+nei_range)
+                            min_models, max_models, i+nei_range)
 
     # save the clfs
     # print "saving the clfs for delta = %i" %(i+1)
@@ -186,7 +186,7 @@ data_predict = [[] for i in range(max_delta)]
 for i in range(min_delta, max_delta):
     print "predicting the values for delta = %i" %(i+1)
     data_predict[i] = svm_predict( clfs[i], test_ed[i], n_models, \
-                                   min_model, max_model, i+nei_range)
+                                   min_models, max_models, i+nei_range)
 
 er = np.zeros(max_delta)
 for i in range(min_delta, max_delta):
