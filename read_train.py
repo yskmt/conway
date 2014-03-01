@@ -8,7 +8,7 @@ from sklearn.externals import joblib
 import pdb
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.ensemble import AdaBoostClassifier
+import sys
 
 def generate_symmetry( data ):
     "generate the symmetry cell pattern"
@@ -66,12 +66,15 @@ def svm_vectors ( train, target, n_cells,delta ):
     for i in range(n_cells):
         print "%dth iteration" %i
         st_svc = time.time()
-        clfs.append(SGDClassifier(loss="hinge", penalty="l2"))
+        # clfs.append(SGDClassifier(loss="hinge", penalty="l2"))
         # clfs.append(svm.SVC())
         # clfs.append(KNeighborsClassifier())
         # clfs.append(AdaBoostClassifier(n_estimators=100))
-        # clfs.append(RandomForestClassifier(n_estimators=40,n_jobs=4, criterion="entropy"))
-        clfs[i].fit(train[:,get_delta_neighbor(i,delta)], target[:,i])
+        clfs.append(RandomForestClassifier(n_estimators=200, n_jobs=-1))
+        if n_cells==400:
+            clfs[i].fit(train[:,get_delta_neighbor(i,delta)], target[:,i])
+        else:
+            clfs[i].fit(train[:,:], target[:,i])
         # pdb.set_trace()
         ed_svc = time.time()
         print "done, time: %f" %(ed_svc-st_svc)        
@@ -89,14 +92,37 @@ def svm_predict (clfs, data_test, n_cells, delta ):
     for i in range(n_cells):
         print "%dth iteration" %i
         st_svc = time.time()
-        data_predict[i] = np.array(clfs[i].predict( data_test[:,get_delta_neighbor(i,delta)]) )
+        if n_cells==400:
+            data_predict[i] = np.array(clfs[i].predict( data_test[:,get_delta_neighbor(i,delta)]) )
+        else:
+            data_predict[i] = np.array(clfs[i].predict( data_test[:,:]) )
         ed_svc = time.time()
         print "done, time: %f" %(ed_svc-st_svc)        
 
     return data_predict.T
 
 
+#######################################################################
+
+## Starting the program
+
+if len(sys.argv)<5:
+    print "not enough arguments!!"
+    sys.exit()
+
+arglist = sys.argv
+
+# delta range
+min_delta = int (arglist[1])
+max_delta = int (arglist[2])
+# model range
+min_models = int (arglist[3]) # >=0
+max_models = int (arglist[4]) # <=400
+n_models = max_models-min_models
+# neighborhood range
 nei_range = 20
+# training set size
+train_size = 0.9
 
 # read in  data, parse into training and target sets
 print "reading the dataset"
@@ -113,25 +139,12 @@ for i in range(n):
     id[i] = int(dataset[i,0])
     delta[i] = int(dataset[i,1])
     
-    data_st[delta[i]-1].append(dataset[i,2:402])
-    # data_2, data_3, data_4, data_5, data_6 = generate_symmetry( dataset[i,2:402] )
-    # data_st[delta[i]-1].append(data_2)
-    # data_st[delta[i]-1].append(data_3)
-    # data_st[delta[i]-1].append(data_4)
-    # data_st[delta[i]-1].append(data_5)
-    # data_st[delta[i]-1].append(data_6)
+    data_st[delta[i]-1].append(dataset[i,(2+min_models):(2+max_models)])
+    data_ed[delta[i]-1].append(dataset[i,(402+min_models):(402+max_models)])
 
-    data_ed[delta[i]-1].append(dataset[i,402:802])
-    # data_2, data_3, data_4, data_5, data_6 = generate_symmetry( dataset[i,402:802] )
-    # data_ed[delta[i]-1].append(data_2)
-    # data_ed[delta[i]-1].append(data_3)
-    # data_ed[delta[i]-1].append(data_4)
-    # data_ed[delta[i]-1].append(data_5)
-    # data_ed[delta[i]-1].append(data_6)
-
-max_delta = max(delta)
-n_cells = 400
-max_delta = 1
+# max_delta = max(delta)
+# min_delta = 0
+# max_delta = 1
 
 n_train = np.zeros(max_delta, dtype=int)
 n_test = np.zeros(max_delta, dtype=int)
@@ -140,8 +153,8 @@ train_ed = [[] for i in range(5) ]
 test_st = [[] for i in range(5) ]
 test_ed = [[] for i in range(5) ]
 
-for i in range(max_delta):
-    n_train[i] = int(len(data_st[i])*0.9)
+for i in range(min_delta, max_delta):
+    n_train[i] = int(len(data_st[i])*train_size)
     n_test[i] = int(len(data_st[i]) - n_train[i])
 
     train_st[i] = np.array(data_st[i][:n_train[i]], dtype=int)
@@ -149,22 +162,22 @@ for i in range(max_delta):
     test_st[i] = np.array(data_st[i][n_train[i]:], dtype=int)
     test_ed[i] = np.array(data_ed[i][n_train[i]:], dtype=int)
 
-    # add 5 more symmetrical positions
-    train_st[i] = np.concatenate((train_st[i], generate_symmetry(train_st[i])))
-    train_ed[i] = np.concatenate((train_ed[i], generate_symmetry(train_ed[i])))
+    if n_models == 400:
+        # add 5 more symmetrical positions when we do full model simulation
+        train_st[i] = np.concatenate((train_st[i], generate_symmetry(train_st[i])))
+        train_ed[i] = np.concatenate((train_ed[i], generate_symmetry(train_ed[i])))
 
     n_train[i] = int(len(train_st[i]))
-
 
 
 # classification functions for [delta][cell#]
 clfs = [[] for i in range(max_delta)]
 # solve the problem for different levels
-for i in range(max_delta):
+for i in range(min_delta, max_delta):
 
     # run the svm
     print "runnning the svm for delta = %i" %(i+1)
-    clfs[i] =  svm_vectors( train_ed[i], train_st[i], n_cells, i+nei_range)
+    clfs[i] =  svm_vectors( train_ed[i], train_st[i], n_models, i+nei_range)
 
     # save the clfs
     # print "saving the clfs for delta = %i" %(i+1)
@@ -173,18 +186,23 @@ for i in range(max_delta):
 # predicted data for [delta]
 data_predict = [[] for i in range(max_delta)]
 # predict the values for different levels
-for i in range(max_delta):
+for i in range(min_delta, max_delta):
     print "predicting the values for delta = %i" %(i+1)
-    data_predict[i] = svm_predict( clfs[i], test_ed[i], n_cells, i+nei_range)
+    data_predict[i] = svm_predict( clfs[i], test_ed[i], n_models, i+nei_range)
 
 er = np.zeros(max_delta)
-for i in range(max_delta):
+for i in range(min_delta, max_delta):
     er[i] = sum(sum(abs(test_st[i] - data_predict[i]).T)) / \
-        (n_test[i]*n_cells)
-    # er[i] = sum((abs(data_st[i][n_train:n_train*2+1,0:n_cells] - data_predict[i])).T)
-    # print "error %% = %f" %(sum(er[i])/((n_train+1)*n_cells))
+        (n_test[i]*n_models)
+    # er[i] = sum((abs(data_st[i][n_train:n_train*2+1,0:n_models] - data_predict[i])).T)
+    # print "error %% = %f" %(sum(er[i])/((n_train+1)*n_models))
 
 print er
+
+with open('error_'+arglist[1]+"_"+arglist[2]+"_"+arglist[3]+"_"+arglist[4]+".txt", 'w') as f:
+
+    for i in range(min_delta, max_delta):
+        f.write(str(er[i])+'\n')
 
 
 
