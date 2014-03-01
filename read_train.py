@@ -59,7 +59,7 @@ def get_delta_neighbor( cell_num, delta ):
     return neighbor_indices
 
 
-def svm_vectors ( train, target, n_cells,delta ):
+def svm_vectors ( train, target, n_cells, min_model, max_model, delta ):
     "Get the SVM vectors for each cell"
     clfs = []
     start = time.time()
@@ -71,10 +71,9 @@ def svm_vectors ( train, target, n_cells,delta ):
         # clfs.append(KNeighborsClassifier())
         # clfs.append(AdaBoostClassifier(n_estimators=100))
         clfs.append(RandomForestClassifier(n_estimators=200, n_jobs=-1))
-        if n_cells==400:
-            clfs[i].fit(train[:,get_delta_neighbor(i,delta)], target[:,i])
-        else:
-            clfs[i].fit(train[:,:], target[:,i])
+        clfs[i].fit(train[:,get_delta_neighbor(i+min_model,delta)], \
+                    target[:,i+min_model])
+
         # pdb.set_trace()
         ed_svc = time.time()
         print "done, time: %f" %(ed_svc-st_svc)        
@@ -84,7 +83,7 @@ def svm_vectors ( train, target, n_cells,delta ):
 
     return clfs
 
-def svm_predict (clfs, data_test, n_cells, delta ):
+def svm_predict (clfs, data_test, n_cells, min_model, max_model, delta ):
     "Predict the values for each cell"
     n_train, _ = data_test.shape
     data_predict = np.zeros([n_cells, n_train])
@@ -92,10 +91,8 @@ def svm_predict (clfs, data_test, n_cells, delta ):
     for i in range(n_cells):
         print "%dth iteration" %i
         st_svc = time.time()
-        if n_cells==400:
-            data_predict[i] = np.array(clfs[i].predict( data_test[:,get_delta_neighbor(i,delta)]) )
-        else:
-            data_predict[i] = np.array(clfs[i].predict( data_test[:,:]) )
+        data_predict[i] = \
+            np.array(clfs[i].predict(data_test[:,get_delta_neighbor(i+min_model,delta)]) )
         ed_svc = time.time()
         print "done, time: %f" %(ed_svc-st_svc)        
 
@@ -139,8 +136,8 @@ for i in range(n):
     id[i] = int(dataset[i,0])
     delta[i] = int(dataset[i,1])
     
-    data_st[delta[i]-1].append(dataset[i,(2+min_models):(2+max_models)])
-    data_ed[delta[i]-1].append(dataset[i,(402+min_models):(402+max_models)])
+    data_st[delta[i]-1].append(dataset[i,(2+0):(2+400)])
+    data_ed[delta[i]-1].append(dataset[i,(402+0):(402+400)])
 
 # max_delta = max(delta)
 # min_delta = 0
@@ -162,10 +159,9 @@ for i in range(min_delta, max_delta):
     test_st[i] = np.array(data_st[i][n_train[i]:], dtype=int)
     test_ed[i] = np.array(data_ed[i][n_train[i]:], dtype=int)
 
-    if n_models == 400:
-        # add 5 more symmetrical positions when we do full model simulation
-        train_st[i] = np.concatenate((train_st[i], generate_symmetry(train_st[i])))
-        train_ed[i] = np.concatenate((train_ed[i], generate_symmetry(train_ed[i])))
+    # add 5 more symmetrical positions when we do full model simulation
+    train_st[i] = np.concatenate((train_st[i], generate_symmetry(train_st[i])))
+    train_ed[i] = np.concatenate((train_ed[i], generate_symmetry(train_ed[i])))
 
     n_train[i] = int(len(train_st[i]))
 
@@ -177,7 +173,8 @@ for i in range(min_delta, max_delta):
 
     # run the svm
     print "runnning the svm for delta = %i" %(i+1)
-    clfs[i] =  svm_vectors( train_ed[i], train_st[i], n_models, i+nei_range)
+    clfs[i] =  svm_vectors( train_ed[i], train_st[i], n_models, \
+                            min_model, max_model, i+nei_range)
 
     # save the clfs
     # print "saving the clfs for delta = %i" %(i+1)
@@ -188,7 +185,8 @@ data_predict = [[] for i in range(max_delta)]
 # predict the values for different levels
 for i in range(min_delta, max_delta):
     print "predicting the values for delta = %i" %(i+1)
-    data_predict[i] = svm_predict( clfs[i], test_ed[i], n_models, i+nei_range)
+    data_predict[i] = svm_predict( clfs[i], test_ed[i], n_models, \
+                                   min_model, max_model, i+nei_range)
 
 er = np.zeros(max_delta)
 for i in range(min_delta, max_delta):
