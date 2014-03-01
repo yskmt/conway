@@ -70,7 +70,7 @@ def svm_vectors ( train, target, n_cells, min_models, max_models, delta ):
         # clfs.append(svm.SVC())
         # clfs.append(KNeighborsClassifier())
         # clfs.append(AdaBoostClassifier(n_estimators=100))
-        clfs.append(RandomForestClassifier(n_estimators=200, n_jobs=-1))
+        clfs.append(RandomForestClassifier(n_estimators=200, n_jobs=2))
         clfs[i].fit(train[:,get_delta_neighbor(i+min_models,delta)], \
                     target[:,i+min_models])
 
@@ -123,22 +123,33 @@ train_size = 0.9
 
 # read in  data, parse into training and target sets
 print "reading the dataset"
-dataset = np.genfromtxt(open('Data/train.csv','r'), delimiter=',', dtype='f8')[1:]
+dataset = np.loadtxt(open('Data/train.csv','r'), skiprows=1, delimiter=',', dtype='int')
 n,m = dataset.shape
 
 # clean up the datasets
 print "cleaning up the dataset"
-id = np.zeros(n, dtype=int)
-delta = np.zeros(n, dtype=int)
+id = dataset[:,0]
+delta = dataset[:,1]
+
 data_st = [[] for i in range(5) ]
 data_ed = [[] for i in range(5) ]
-for i in range(n):
-    id[i] = int(dataset[i,0])
-    delta[i] = int(dataset[i,1])
+for i in range(max(delta)):
+    # extract rows with each delta value
+    if min_delta<=i<max_delta:
+        data_st[i] = np.array(dataset[dataset[:, 1] == (i+1), 2:402], dtype=int)
+        data_ed[i] = np.array(dataset[dataset[:, 1] == (i+1), 402:802], dtype=int)
+
+# id = np.zeros(n, dtype=int)
+# delta = np.zeros(n, dtype=int)
+# data_st = [[] for i in range(5) ]
+# data_ed = [[] for i in range(5) ]
+# for i in range(n):
+#     # id[i] = int(dataset[i,0])
+#     # delta[i] = int(dataset[i,1])
     
-    if min_delta<delta[i]<=max_delta:
-        data_st[delta[i]-1].append(dataset[i,(2+0):(2+400)])
-        data_ed[delta[i]-1].append(dataset[i,(402+0):(402+400)])
+#     if min_delta<delta[i]<=max_delta:
+#         data_st[delta[i]-1].append(dataset[i,(2+0):(2+400)])
+#         data_ed[delta[i]-1].append(dataset[i,(402+0):(402+400)])
 
 # max_delta = max(delta)
 # min_delta = 0
@@ -161,8 +172,10 @@ for i in range(min_delta, max_delta):
     test_ed[i] = np.array(data_ed[i][n_train[i]:], dtype=bool, order='F')
 
     # add 5 more symmetrical positions when we do full model simulation
-    train_st[i] = np.concatenate((train_st[i], generate_symmetry(train_st[i])))
-    train_ed[i] = np.concatenate((train_ed[i], generate_symmetry(train_ed[i])))
+    train_st[i] = np.array(np.concatenate(train_st[i], generate_symmetry(train_st[i])),\
+                           dtype=bool, order='F')
+    train_ed[i] = np.array(np.concatenate(train_ed[i], generate_symmetry(train_ed[i]),\
+                           dtype=bool, order='F'))
 
     n_train[i] = int(len(train_st[i]))
 
