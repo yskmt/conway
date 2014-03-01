@@ -15,7 +15,7 @@ def generate_symmetry( data ):
     # data: n*400 array
     
     n,m = data.shape
-    data_symm = np.zeros([5*n, m], dtype=int)
+    data_symm = np.zeros([5*n, m], dtype=bool)
 
     for l in range(n):
     
@@ -155,10 +155,10 @@ for i in range(min_delta, max_delta):
     n_train[i] = int(len(data_st[i])*train_size)
     n_test[i] = int(len(data_st[i]) - n_train[i])
 
-    train_st[i] = np.array(data_st[i][:n_train[i]], dtype=int, order='F')
-    train_ed[i] = np.array(data_ed[i][:n_train[i]], dtype=int, order='F')
-    test_st[i] = np.array(data_st[i][n_train[i]:], dtype=int, order='F')
-    test_ed[i] = np.array(data_ed[i][n_train[i]:], dtype=int, order='F')
+    train_st[i] = np.array(data_st[i][:n_train[i]], dtype=bool, order='F')
+    train_ed[i] = np.array(data_ed[i][:n_train[i]], dtype=bool, order='F')
+    test_st[i] = np.array(data_st[i][n_train[i]:], dtype=bool, order='F')
+    test_ed[i] = np.array(data_ed[i][n_train[i]:], dtype=bool, order='F')
 
     # add 5 more symmetrical positions when we do full model simulation
     train_st[i] = np.concatenate((train_st[i], generate_symmetry(train_st[i])))
@@ -191,10 +191,8 @@ for i in range(min_delta, max_delta):
 
 er = np.zeros(max_delta)
 for i in range(min_delta, max_delta):
-    er[i] = sum(sum(abs(test_st[i] - data_predict[i]).T)) / \
+    er[i] = sum(sum(abs(test_st[i][:,min_models:max_models].astype(int) - data_predict[i]).T)) / \
         (n_test[i]*n_models)
-    # er[i] = sum((abs(data_st[i][n_train:n_train*2+1,0:n_models] - data_predict[i])).T)
-    # print "error %% = %f" %(sum(er[i])/((n_train+1)*n_models))
 
 print er
 
