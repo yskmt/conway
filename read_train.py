@@ -10,6 +10,7 @@ from sklearn.neighbors import KNeighborsClassifier
 from sklearn.ensemble import RandomForestClassifier
 import sys
 import gc
+from sklearn import tree
 
 def generate_symmetry( data ):
     "generate the symmetry cell pattern"
@@ -71,7 +72,7 @@ def svm_vectors ( train, target, n_cells, min_models, max_models, delta ):
         # clfs.append(svm.SVC())
         # clfs.append(KNeighborsClassifier())
         # clfs.append(AdaBoostClassifier(n_estimators=100))
-        clfs.append(RandomForestClassifier(n_estimators=100, n_jobs=4))
+        # clfs.append(RandomForestClassifier(n_estimators=100, n_jobs=4))
         clfs[i].fit(train[:,get_delta_neighbor(i+min_models,delta)], \
                     target[:,i+min_models])
 
@@ -185,8 +186,12 @@ for i in range(min_delta, max_delta):
 
     # run the svm
     print "runnning the svm for delta = %i" %(i+1)
-    clfs[i] =  svm_vectors( train_ed[i], train_st[i], n_models, \
-                            min_models, max_models, i+nei_range)
+    clf = tree.DecisionTreeClassifier()
+    clf.fit(train_ed[i], train_st[i])
+
+
+     # clfs[i] =  svm_vectors( train_ed[i], train_st[i], n_models, \
+     #                        min_models, max_models, i+nei_range)
 
     # save the clfs
     # print "saving the clfs for delta = %i" %(i+1)
@@ -197,19 +202,20 @@ data_predict = [[] for i in range(max_delta)]
 # predict the values for different levels
 for i in range(min_delta, max_delta):
     print "predicting the values for delta = %i" %(i+1)
-    data_predict[i] = svm_predict( clfs[i], test_ed[i], n_models, \
-                                   min_models, max_models, i+nei_range)
+    # data_predict[i] = svm_predict( clfs[i], test_ed[i], n_models, \
+                                   # min_models, max_models, i+nei_range)
+    data_predict[i] = clf.predict(test_ed[i])
 
-# er = np.zeros(max_delta)
-# for i in range(min_delta, max_delta):
-#     er[i] = sum(sum(abs(test_st[i][:,min_models:max_models].astype(int) - data_predict[i]).T)) / \
-#         (n_test[i]*n_models)
+er = np.zeros(max_delta)
+for i in range(min_delta, max_delta):
+    er[i] = sum(sum(abs(test_st[i][:,min_models:max_models].astype(int) - data_predict[i]).T)) / \
+        (n_test[i]*n_models)
 
-# print er
+print er
 
 
 # output results
-outfile = 'outs8/out_'+arglist[1]+"_"+arglist[2]+"_"+arglist[3]+"_"+arglist[4]+".txt"
+outfile = 'outs/out_'+arglist[1]+"_"+arglist[2]+"_"+arglist[3]+"_"+arglist[4]+".txt"
 for i in range(min_delta, max_delta):
 	data_predict[i].tofile(outfile, ',')
 
