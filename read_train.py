@@ -71,7 +71,7 @@ def svm_vectors ( train, target, n_cells, min_models, max_models, delta ):
         # clfs.append(svm.SVC())
         # clfs.append(KNeighborsClassifier())
         # clfs.append(AdaBoostClassifier(n_estimators=100))
-        clfs.append(RandomForestClassifier(n_estimators=100, n_jobs=8))
+        clfs.append(RandomForestClassifier(n_estimators=100, n_jobs=4))
         clfs[i].fit(train[:,get_delta_neighbor(i+min_models,delta)], \
                     target[:,i+min_models])
 
@@ -160,12 +160,12 @@ for i in range(min_delta, max_delta):
     test_ed[i] = np.array(data_ed[i][n_train[i]:], dtype=bool, order='F')
 
     # add 5 more symmetrical positions when we do full model simulation
-    train_st[i] = \
-        np.array(np.concatenate((train_st[i], generate_symmetry(train_st[i]))),\
-                 dtype=bool, order='F')
-    train_ed[i] = \
-        np.array(np.concatenate((train_ed[i], generate_symmetry(train_ed[i]))),\
-                dtype=bool, order='F')
+    # train_st[i] = \
+    #     np.array(np.concatenate((train_st[i], generate_symmetry(train_st[i]))),\
+    #              dtype=bool, order='F')
+    # train_ed[i] = \
+    #     np.array(np.concatenate((train_ed[i], generate_symmetry(train_ed[i]))),\
+    #             dtype=bool, order='F')
 
     n_train[i] = int(len(train_st[i]))
 
@@ -209,7 +209,7 @@ for i in range(min_delta, max_delta):
 
 
 # output results
-outfile = 'out_'+arglist[1]+"_"+arglist[2]+"_"+arglist[3]+"_"+arglist[4]+".txt"
+outfile = 'outs8/out_'+arglist[1]+"_"+arglist[2]+"_"+arglist[3]+"_"+arglist[4]+".txt"
 for i in range(min_delta, max_delta):
 	data_predict[i].tofile(outfile, ',')
 
