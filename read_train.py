@@ -20,7 +20,7 @@ def generate_symmetry( data ):
     data_symm = np.zeros([5*n, m], dtype=bool)
 
     for l in range(n):
-    
+        
         for k in range(400):
             i = k%20
             j = k/20
@@ -57,7 +57,7 @@ def get_delta_neighbor( cell_num, delta ):
             
             if (-1<i_nei<20) & (-1<j_nei<20):
                 neighbor_indices.append(i_nei*20+j_nei)
-    
+                
     return neighbor_indices
 
 
@@ -72,14 +72,14 @@ def svm_vectors ( train, target, n_cells, min_models, max_models, delta ):
         # clfs.append(svm.SVC())
         # clfs.append(KNeighborsClassifier())
         # clfs.append(AdaBoostClassifier(n_estimators=100))
-        # clfs.append(RandomForestClassifier(n_estimators=100, n_jobs=4))
+        clfs.append(RandomForestClassifier(n_estimators=100, n_jobs=1))
         clfs[i].fit(train[:,get_delta_neighbor(i+min_models,delta)], \
                     target[:,i+min_models])
 
         # pdb.set_trace()
         ed_svc = time.time()
         print "done, time: %f" %(ed_svc-st_svc)        
-    end = time.time()
+        end = time.time()
 
     print "ellapsed time = ", end - start
 
@@ -94,7 +94,7 @@ def svm_predict (clfs, data_test, n_cells, min_models, max_models, delta ):
         print "%dth iteration" %i
         st_svc = time.time()
         data_predict[i] = \
-            np.array(clfs[i].predict(data_test[:,get_delta_neighbor(i+min_models,delta)]) )
+                          np.array(clfs[i].predict(data_test[:,get_delta_neighbor(i+min_models,delta)]) )
         ed_svc = time.time()
         print "done, time: %f" %(ed_svc-st_svc)        
 
@@ -143,7 +143,7 @@ for i in range(max(delta)):
 
 # reshaping the arrays
 print "reshaping the arrays..."
-                
+
 n_train = np.zeros(max_delta, dtype=int)
 n_test = np.zeros(max_delta, dtype=int)
 train_st = [[] for i in range(5) ]
@@ -161,39 +161,40 @@ for i in range(min_delta, max_delta):
     test_ed[i] = np.array(data_ed[i][n_train[i]:], dtype=bool, order='F')
 
     # add 5 more symmetrical positions when we do full model simulation
-    train_st[i] = \
-        np.array(np.concatenate((train_st[i], generate_symmetry(train_st[i]))),\
-                 dtype=bool, order='F')
-    train_ed[i] = \
-        np.array(np.concatenate((train_ed[i], generate_symmetry(train_ed[i]))),\
-                dtype=bool, order='F')
+    # train_st[i] = \
+    #               np.asfortranarray(np.concatenate((train_st[i], generate_symmetry(train_st[i]))))
+    # train_ed[i] = \
+    #               np.asfortranarray(np.concatenate((train_ed[i], generate_symmetry(train_ed[i]))))
 
     n_train[i] = int(len(train_st[i]))
 
 
 
 # try to free some memoery
-dataset = []
-data_st = []
-data_ed = []
-gc.collect()
+del dataset
+del data_st
+del data_ed
 
 
 # classification functions for [delta][cell#]
 clfs = [[] for i in range(max_delta)]
 # solve the problem for different levels
 for i in range(min_delta, max_delta):
-
+    
     # run the svm
     print "runnning the svm for delta = %i" %(i+1)
-    clf = RandomForestClassifier(n_estimators=10, n_jobs=4)
 
-    # clf = tree.DecisionTreeClassifier()
-    clf.fit(train_ed[i], train_st[i])
-
-
-     # clfs[i] =  svm_vectors( train_ed[i], train_st[i], n_models, \
-     #                        min_models, max_models, i+nei_range)
+    st_clf = time.time()
+    clf = RandomForestClassifier(n_estimators=20, n_jobs=1)
+    A = train_st[i][:,min_models:max_models]
+    if n_models == 1:
+        A = A[:,0]
+    clf.fit(train_ed[i], A)
+    ed_clf = time.time()
+    print "fit complete. elapsed time = %f" %(ed_clf-st_clf)
+    
+    # clfs[i] =  svm_vectors( train_ed[i], train_st[i], n_models, \
+        #                        min_models, max_models, i+nei_range)
 
     # save the clfs
     # print "saving the clfs for delta = %i" %(i+1)
@@ -204,14 +205,23 @@ data_predict = [[] for i in range(max_delta)]
 # predict the values for different levels
 for i in range(min_delta, max_delta):
     print "predicting the values for delta = %i" %(i+1)
+    st_prd = time.time()
     # data_predict[i] = svm_predict( clfs[i], test_ed[i], n_models, \
-                                   # min_models, max_models, i+nei_range)
+        # min_models, max_models, i+nei_range)
     data_predict[i] = clf.predict(test_ed[i])
+    ed_prd = time.time()
+    print "prediction complete. elasped time = %f" %(ed_prd-st_prd)
 
 er = np.zeros(max_delta)
 for i in range(min_delta, max_delta):
-    er[i] = sum(sum(abs(test_st[i][:,min_models:max_models].astype(int) - data_predict[i]).T)) / \
-        (n_test[i]*n_models)
+    C = test_st[i][:,min_models:max_models]
+    if n_models==1:
+        C = C[:,0]
+        er[i] = float(sum(abs(C.astype(int) - (data_predict[i]).astype(int)))) / \
+                float(n_test[i]*n_models)
+    else:
+        er[i] = sum(sum(abs(C.astype(int) - (data_predict[i]).astype(int)))) / \
+                (n_test[i]*n_models)
 
 print er
 
@@ -219,7 +229,7 @@ print er
 # output results
 outfile = 'outs/out_'+arglist[1]+"_"+arglist[2]+"_"+arglist[3]+"_"+arglist[4]+".txt"
 for i in range(min_delta, max_delta):
-	data_predict[i].tofile(outfile, ',')
+    data_predict[i].astype(int).tofile(outfile, ',')
 
 
 # with open('error_'+arglist[1]+"_"+arglist[2]+"_"+arglist[3]+"_"+arglist[4]+".txt", 'w') as f:
@@ -235,8 +245,8 @@ for i in range(min_delta, max_delta):
 
 # ## cross validation
 # X_train, X_test, y_train, y_test = \
-# cross_validation.train_test_split(cell_data, cell_target, \
-#                                   test_size=0.4, random_state=0)
+    # cross_validation.train_test_split(cell_data, cell_target, \
+    #                                   test_size=0.4, random_state=0)
 
 # clf = svm.SVC(kernel='linear', C=1)
 # cv_scores = cross_validation.cross_val_score(clf, cell_data, cell_target, cv=5)
