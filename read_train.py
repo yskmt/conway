@@ -161,12 +161,12 @@ for i in range(min_delta, max_delta):
     test_ed[i] = np.array(data_ed[i][n_train[i]:], dtype=bool, order='F')
 
     # add 5 more symmetrical positions when we do full model simulation
-    # train_st[i] = \
-    #     np.array(np.concatenate((train_st[i], generate_symmetry(train_st[i]))),\
-    #              dtype=bool, order='F')
-    # train_ed[i] = \
-    #     np.array(np.concatenate((train_ed[i], generate_symmetry(train_ed[i]))),\
-    #             dtype=bool, order='F')
+    train_st[i] = \
+        np.array(np.concatenate((train_st[i], generate_symmetry(train_st[i]))),\
+                 dtype=bool, order='F')
+    train_ed[i] = \
+        np.array(np.concatenate((train_ed[i], generate_symmetry(train_ed[i]))),\
+                dtype=bool, order='F')
 
     n_train[i] = int(len(train_st[i]))
 
@@ -186,7 +186,9 @@ for i in range(min_delta, max_delta):
 
     # run the svm
     print "runnning the svm for delta = %i" %(i+1)
-    clf = tree.DecisionTreeClassifier()
+    clf = RandomForestClassifier(n_estimators=10, n_jobs=4)
+
+    # clf = tree.DecisionTreeClassifier()
     clf.fit(train_ed[i], train_st[i])
 
 
