@@ -1,28 +1,13 @@
-TODO: 
+## Machine Learning Exercise for [Reverse the arrow of time in the Game of Life](http://www.kaggle.com/c/conway-s-reverse-game-of-life)
 
-1) Include the delta value to the SVM classification.
-   - Delta is how many "steps" cells are simulated (usually 4~5)
-   - Delta can have a profound effect on the result.
+I use primariry scikit-learn Python package to carry out the machine learning process.
 
-2) Add socring function.
-   - Just (1-error).
-   - Need to be ~0.1.
-
-3) Very slow SVM classification step.
-   - Dimensionality reduction step? PCA?
-   - Dimensionality reduction is a good candidate because the cells that
-     are far away to each other probably never interact.
+* train_data.py - main machine learning process file. Carry out the random forest classification based on the train file in data directory and output the classification results to outs directory.
+* gen_paramlist.py - generate a job list based on the output files in outs directory.
+* consolidate_prediction.py - consolidate all the output files in outs directory into one Submission.csv file.
+* visualize_cells.py - visualize all the cells in 20x20 grid. Need to create a time-dependent visualization.
 
 
-NOTES:
-used n/10 number of train data
-error: 0.14643074,  0.14768123,  0.14361083,  0.14393775,  0.14298096
+### Usage of train_data.py
 
-used n/5 number of train data
-[ 0.14582195  0.14550645  0.14802684  0.14508651  0.14406814]
-
-
-Directories:
-
-dump_10-dim-results: predicted only 10 cells with 1/5 datasets
-dump_400-dim-results predicted 400 cells with 1/5 datasets, error = 0.143404, took ~6 hours.
+run train_data.py 0 1 0 1
